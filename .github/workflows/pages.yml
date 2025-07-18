@@ -1,0 +1,48 @@
+name: Deploy MkDocs site to GitHub Pages
+
+on:
+  push:
+    branches: [main]        # 只要 main 有变更就重新发布
+  workflow_dispatch:        # 允许手动触发
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "github-pages"
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉代码（含主题等子模块）
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # 2. 设置 Python 并安装 MkDocs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mkdocs-material
+
+      # 3. 构建站点到 ./site
+      - run: mkdocs build -d site
+
+      # 4. 告诉 GitHub 这是要发布的静态资源
+      - uses: actions/configure-pages@v4
+
+      # 5. 上传生成好的静态文件作为 Artifact
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+
+      # 6. 真正部署到 gh-pages 分支
+      - uses: actions/deploy-pages@v4
